@@ -1,5 +1,6 @@
-# data
+# files exclude
 data/
+thesis/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
