@@ -7,10 +7,10 @@ plt.style.use("default")
         draw_isoc(isoc,photsys_file)
 '''
 
-'''
-    draw isochrone and color the stellar period
-'''
 def draw_isoc(isoc,photsys_file):
+    '''
+        draw isochrone and color the stellar period
+    '''
     PMS = np.where((isoc['label']==0))[0] # pre main sequence
     MS = np.where((isoc['label']==1))[0] # main sequence
     SGB = np.where((isoc['label']==2))[0] # subgiant branch, or Hertzsprung gap for more intermediate+massive stars
