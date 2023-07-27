@@ -91,9 +91,12 @@ class MagError(Edr3LogMagUncertainty):
     method2: from observation mag_magerr relation (corrected Nobs effect)
     '''
     
-    def __init__(self, sample_obs=None, med_nobs=None, spline_csv=spline_csv, bands=['Gmag','G_BPmag','G_RPmag']):
+    def __init__(self, sample_obs=None, med_nobs=None, spline_csv=spline_csv, bands=None):
         super(MagError,self).__init__(spline_csv)
-        self.bands = bands
+        if bands:
+            self.bands = bands
+        else:
+            self.bands=['Gmag','G_BPmag','G_RPmag']
         self.spline_g = self._Edr3LogMagUncertainty__splines['g']
         self.spline_bp = self._Edr3LogMagUncertainty__splines['bp']
         self.spline_rp = self._Edr3LogMagUncertainty__splines['rp']
