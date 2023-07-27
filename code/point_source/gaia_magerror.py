@@ -101,11 +101,12 @@ class MagError(Edr3LogMagUncertainty):
             self.med_nobs = med_nobs
         else:
             if sample_obs is not None:
-                self.med_nobs = self.extract_med_nobs(sample_obs)
+                self.med_nobs = MagError.extract_med_nobs(sample_obs)
             else:
-                print('please enter med_nobs OR sample_obs')
-        
-    def extract_med_nobs(self, sample_obs, nobs=['phot_g_n_obs','phot_bp_n_obs','phot_rp_n_obs']):
+                raise ValueError('please enter med_nobs OR sample_obs')
+    
+    @staticmethod
+    def extract_med_nobs(sample_obs, nobs=['phot_g_n_obs','phot_bp_n_obs','phot_rp_n_obs']):
         # extract the median value of n_obs(number of observation)
         med_nobs = []
         for i in range(3):
@@ -149,13 +150,11 @@ def main():
 
     e = MagError(sample_obs=sample)
     g_med_err, bp_med_err, rp_med_err = e.estimate_med_photoerr(sample_syn=sample)
-    # g_syn, bp_syn, rp_syn = e.syn_sample_photoerr(sample,sample)
-    # sample['Gmag_err_syn'], sample['G_BPmag_err_syn'], sample['G_RPmag_err_syn'] = g_med_err, bp_med_err, rp_med_err
-    # sample['Gmag_syn'], sample['G_BPmag_syn'], sample['G_RPmag_syn'] = g_syn, bp_syn, rp_syn
-    # sample.to_csv("/home/shenyueyue/Projects/Cluster/data/%s_syn.csv"%name,index=False)
+    g_syn, bp_syn, rp_syn = e.syn_sample_photoerr(sample_syn = sample)
+    sample['Gmag_err_syn'], sample['G_BPmag_err_syn'], sample['G_RPmag_err_syn'] = g_med_err, bp_med_err, rp_med_err
+    sample['Gmag_syn'], sample['G_BPmag_syn'], sample['G_RPmag_syn'] = g_syn, bp_syn, rp_syn
+    sample.to_csv("/home/shenyueyue/Projects/Cluster/data/%s_syn.csv"%name,index=False)
     
-    
-
 if __name__=="__main__":
     main()
 
