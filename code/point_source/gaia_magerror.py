@@ -139,7 +139,7 @@ class MagError(Edr3LogMagUncertainty):
     def syn_sample_photoerr(self, sample_syn):
         # return synthetic band mag (with statistic error) which obey with N(band,band_med_err)
         n_stars = len(sample_syn)
-        normal_sample = np.random.normal(n_stars)
+        normal_sample = np.random.normal(size = n_stars)
         g_med_err, bp_med_err, rp_med_err = self.estimate_med_photoerr(sample_syn)
         g_syn = (g_med_err/0.67) * normal_sample + sample_syn[self.bands[0]]
         bp_syn = (bp_med_err/0.67) * normal_sample + sample_syn[self.bands[1]]
@@ -175,8 +175,8 @@ def main():
             ax[i].set_title('Mag-MagErr diagram for self checking')
         if i == 0:
             ax[i].legend()
-    ax[3].scatter(sample[bands[1]]-sample[bands[2]], sample[bands[0]], s=2, c='green', label='obs data')
-    ax[3].scatter(sample[bands[1]+'_syn']-sample[bands[2]+'_syn'], sample[bands[0]+'_syn'], s=2, c='orange', label='syn data')
+    ax[3].scatter(sample[bands[1]] - sample[bands[2]], sample[bands[0]], s=2, c='green', label='obs data')
+    ax[3].scatter(sample[bands[1]+'_syn'] - sample[bands[2]+'_syn'], sample[bands[0]+'_syn'], s=2, c='orange', label='syn data')
     ax[3].invert_yaxis()
     ax[3].set_xlabel('BP-RP (mag)')
     ax[3].set_ylabel('G (mag)')
