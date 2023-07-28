@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.interpolate as interpolate
+plt.style.use("default")
 module_dir = os.path.dirname(__file__)
 spline_csv = os.path.join(module_dir,'LogErrVsMagSpline.csv')
 
@@ -130,9 +131,9 @@ class MagError(Edr3LogMagUncertainty):
         n_stars = len(sample_syn)
         g_n_obs, bp_n_obs, rp_n_obs = self.random_n_obs(n_stars)
         # step 2 : calculate mag_err when Nobs = 200(for G) / 20(for BP,RP)
-        g_med_err = 10**(self.spline_g(sample_syn[self.bands[0]]) - np.log(np.sqrt(g_n_obs) / np.sqrt(200)))
-        bp_med_err = 10**(self.spline_bp(sample_syn[self.bands[1]]) - np.log(np.sqrt(bp_n_obs) / np.sqrt(20)))
-        rp_med_err = 10**(self.spline_rp(sample_syn[self.bands[2]]) - np.log(np.sqrt(rp_n_obs) / np.sqrt(20)))
+        g_med_err = 10**(self.spline_g(sample_syn[self.bands[0]]) - np.log10(np.sqrt(g_n_obs) / np.sqrt(200)))
+        bp_med_err = 10**(self.spline_bp(sample_syn[self.bands[1]]) - np.log10(np.sqrt(bp_n_obs) / np.sqrt(20)))
+        rp_med_err = 10**(self.spline_rp(sample_syn[self.bands[2]]) - np.log10(np.sqrt(rp_n_obs) / np.sqrt(20)))
         return g_med_err, bp_med_err, rp_med_err
     
     def syn_sample_photoerr(self, sample_syn):
@@ -152,12 +153,35 @@ def main():
     sample = sample.dropna().reset_index(drop=True)
 
     e = MagError(sample_obs=sample)
+    g_n_obs, bp_n_obs, rp_n_obs = e.random_n_obs(n_stars=len(sample))
     g_med_err, bp_med_err, rp_med_err = e.estimate_med_photoerr(sample_syn=sample)
     g_syn, bp_syn, rp_syn = e.syn_sample_photoerr(sample_syn = sample)
+    sample['Gmag_nobs_syn'], sample['G_BPmag_nobs_syn'], sample['G_RPmag_nobs_syn'] = g_n_obs, bp_n_obs, rp_n_obs
     sample['Gmag_err_syn'], sample['G_BPmag_err_syn'], sample['G_RPmag_err_syn'] = g_med_err, bp_med_err, rp_med_err
     sample['Gmag_syn'], sample['G_BPmag_syn'], sample['G_RPmag_syn'] = g_syn, bp_syn, rp_syn
     sample.to_csv("/home/shenyueyue/Projects/Cluster/data/%s_syn.csv"%name,index=False)
     
+    '''
+    # draw mag-magerr for result checking
+    # obsmag -- MagError --> synmag(witherr)
+    fig,ax = plt.subplots(nrows=1,ncols=4,figsize=(22,4))
+    bands = ['Gmag','G_BPmag','G_RPmag']
+    for i,band in enumerate(bands):
+        ax[i].scatter(sample[band], sample['%s_err'%band], s=2, c='green', label='obs data')
+        ax[i].scatter(sample['%s_syn'%band], sample['%s_err_syn'%band], s=2, c='orange', label='syn data')
+        ax[i].set_ylabel('%s_err'%band)
+        ax[i].set_xlabel(band)
+        if i == 1:
+            ax[i].set_title('Mag-MagErr diagram for self checking')
+        if i == 0:
+            ax[i].legend()
+    ax[3].scatter(sample[bands[1]]-sample[bands[2]], sample[bands[0]], s=2, c='green', label='obs data')
+    ax[3].scatter(sample[bands[1]+'_syn']-sample[bands[2]+'_syn'], sample[bands[0]+'_syn'], s=2, c='orange', label='syn data')
+    ax[3].invert_yaxis()
+    ax[3].set_xlabel('BP-RP (mag)')
+    ax[3].set_ylabel('G (mag)')
+    ax[3].set_title('CMD for checking')
+    '''
 if __name__=="__main__":
     main()
 
