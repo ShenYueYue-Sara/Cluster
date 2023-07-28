@@ -16,12 +16,14 @@ class MockCMD:
     cmd = mCMD.hist2d(sample, c_grid, m_grid)
     """
 
-    def __init__(self, photsyn="gaiaDR2", sample_obs=None): # better give sample_obs!! another way is untested
+    def __init__(self, photsyn="gaiaDR2", sample_obs=None, isochrones_dir=None): # better give sample_obs!! another way is untested
         self.photsyn = photsyn
         if sample_obs is not None:
             self.n_obs = len(sample_obs) # necessary? add sample_obs=None
             if self.photsyn == "gaiaDR2":
                 self.med_nobs = MagError.extract_med_nobs(sample_obs)
+        if isochrones_dir:
+            self.isochrones_dir = isochrones_dir
         self.set_imf()
         # adaptive c_grid, m_grid
 
@@ -35,37 +37,40 @@ class MockCMD:
         logage = kwargs['logage']
         mh = kwargs['mh']
         dm = kwargs['dm']
-        isochrones_dir = kwargs['isochrones_dir']
-        isochrone_path = isochrones_dir+'/iso_age_%s_mh_%s.csv'%(logage,mh)
+        if self.isochrones_dir:
+            isochrone_path = self.isochrones_dir+'/iso_age_%s_mh_%s.csv'%(logage,mh)
+        # get isochrone file
         if os.path.exists(isochrone_path):
-            isochrone = pd.read_csv()
-        if model == 'parsec':
-            if self.photsyn == 'gaiaDR2':
-                mag_max = 18
+            isochrone = pd.read_csv(isochrone_path)
+        else:
+            if model == 'parsec' and self.photsyn == 'gaiaDR2':
                 c = CMD() # initialize berliner CMD
                 isochrone = c.get_one_isochrone(
                     logage=logage, z=None, mh=mh,
                     photsys_file = self.photsyn)
                 # truncate isochrone, PMS ~ EAGB
                 isochrone = isochrone[(isochrone['label']>=0) & (isochrone['label']<=7)].to_pandas()
-                # extract info
-                self.logteff = 'logTe'
-                self.bands = ['Gmag','G_BPmag','G_RPmag']
-                self.Mini = 'Mini'
-                self.mass_min = min(isochrone[ (isochrone['Gmag']+dm) <= mag_max ][self.Mini])
-                self.mass_max = max(isochrone[self.Mini])
-                # add evolutionary phase info
-                self.phase = ['PMS','MS','SGB','RGB','CHEB','CHEB_b','CHEB_r','EAGB']
-                for i in range(8):
-                    # isochrone[isochrone['label']==i]['phase'] = self.phase[i]
-                    id = np.where(isochrone['label']==i)[0]
-                    isochrone.loc[id,'phase'] = self.phase[i]
-
-        elif model == 'mist':
-            print("wait for developing")
-            pass
+            elif model == 'mist':
+                print("wait for developing")
+                pass
+        # extract info from isochrone 
+        if self.photsyn == 'gaiaDR2':
+            mag_max = 18
+            self.logteff = 'logTe'
+            self.bands = ['Gmag','G_BPmag','G_RPmag']
+            self.Mini = 'Mini'
+            self.mass_min = min(isochrone[ (isochrone['Gmag']+dm) <= mag_max ][self.Mini])
+            self.mass_max = max(isochrone[self.Mini])
+            # add evolutionary phase info
+            self.phase = ['PMS','MS','SGB','RGB','CHEB','CHEB_b','CHEB_r','EAGB']
+            for i in range(8):
+                # isochrone[isochrone['label']==i]['phase'] = self.phase[i]
+                id = np.where(isochrone['label']==i)[0]
+                isochrone.loc[id,'phase'] = self.phase[i]
+        # save isochrone file
+        if self.isochrones_dir and isochrone_path is None: 
+            isochrone.to_csv(isochrone_path,index=False)
         # a truncated isochrone (label), so mass_min and mass_max defined
-        isochrone.to_csv(isochrones_dir+'/iso_age_%s_mh_%s.csv'%(logage,mh),index=False)
         return isochrone
     
     def set_imf(self, imf='kroupa_2001', alpha=2):
@@ -171,7 +176,6 @@ class MockCMD:
             isochrone = pd.DataFrame(isochrone)
         else:
             isochrone = self.get_isochrone(logage=logage,mh=mh, dm=dm)
-        isochrone.to_csv('/home/shenyueyue/Projects/Cluster/data/iso')
         # step 2: sample isochrone -> n_stars [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn]
         # single stars + binaries
         sample_syn = self.sample_imf(fb, isochrone, n_stars)
@@ -179,6 +183,16 @@ class MockCMD:
         for _ in self.bands: 
             sample_syn[_+'_syn'] += dm
         # sample -> [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn]
+        '''
+        draw CMD for checking
+        c_2, m_2 = MockCMD.extract_CMD(sample_syn, band_a='Gmag_syn', band_b='G_BPmag_syn', band_c='G_RPmag_syn')
+        fig,ax = plt.subplots(figsize=(5,5))
+        ax.scatter(c_2,m_2,s=2,label='<-- add dm & sampleIMF -- isochrone')
+        ax.set_ylabel('G (mag)')
+        ax.set_xlabel('BP-RP (mag)')
+        ax.set_title('isochrone --> sampleIMF --> add dm')
+        plt.show()
+        '''
         
         # step 3: photometric uncertainties
         # interpolate & scale Edr3LogMagUncertainty
@@ -219,7 +233,8 @@ def main():
     name = 'Melotte_22'
     sample_obs = pd.read_csv("/home/shenyueyue/Projects/Cluster/data/Cantat-Gaudin_2020/%s.csv"%(name))
     
-    m = MockCMD(sample_obs=sample_obs)
+    isochrones_dir = '/home/shenyueyue/Projects/Cluster/data/isocForMockCMD'
+    m = MockCMD(sample_obs=sample_obs,isochrones_dir=isochrones_dir)
     theta = (7.89, 0.032, 0.35, 5.55, 0)
     n_stars = 1000
     sample_syn = m.mock_stars(theta,n_stars)
