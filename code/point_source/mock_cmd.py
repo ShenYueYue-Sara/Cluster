@@ -197,7 +197,7 @@ class MockCMD:
     def eval_lnlikelihood(c_obs, m_obs, c_syn, m_syn, c_grid=(0, 3, 0.1), m_grid=(6, 16, 0.1) ):
         H_obs = MockCMD.hist2d_norm(c_obs, m_obs, c_grid, m_grid)
         H_syn = MockCMD.hist2d_norm(c_syn, m_syn, c_grid, m_grid)
-        chi2 = np.square(H_obs - H_syn) / H_obs
+        chi2 = np.sum(np.square(H_obs - H_syn) / H_obs)
         return -1/2*chi2
     
 def main():
