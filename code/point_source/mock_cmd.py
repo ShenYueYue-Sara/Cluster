@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 from scipy import integrate
@@ -5,6 +6,8 @@ from berliner import CMD
 import random
 from scipy import interpolate
 from gaia_magerror import  MagError
+import matplotlib.pyplot as plt
+plt.style.use("default")
 
 class MockCMD:
     """
@@ -32,6 +35,10 @@ class MockCMD:
         logage = kwargs['logage']
         mh = kwargs['mh']
         dm = kwargs['dm']
+        isochrones_dir = kwargs['isochrones_dir']
+        isochrone_path = isochrones_dir+'/iso_age_%s_mh_%s.csv'%(logage,mh)
+        if os.path.exists(isochrone_path):
+            isochrone = pd.read_csv()
         if model == 'parsec':
             if self.photsyn == 'gaiaDR2':
                 mag_max = 18
@@ -58,6 +65,7 @@ class MockCMD:
             print("wait for developing")
             pass
         # a truncated isochrone (label), so mass_min and mass_max defined
+        isochrone.to_csv(isochrones_dir+'/iso_age_%s_mh_%s.csv'%(logage,mh),index=False)
         return isochrone
     
     def set_imf(self, imf='kroupa_2001', alpha=2):
@@ -155,12 +163,15 @@ class MockCMD:
         #     mag_magerr = np.polyfit(x,y,3)
         return  sample_syn # a sample of mock stars WITH band error added [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn, _err_syn]
 
-    def mock_stars(self, theta, n_stars):
+    def mock_stars(self, theta, n_stars, isochrone=None):
         logage, mh, fb, dm, Av = theta # mag_min, mag_max not included yet!
         print(logage, mh, dm)
         # step 1: logage, m_h -> isochrone [mass, G, BP, RP]
-        isochrone = self.get_isochrone(logage=logage,mh=mh, dm=dm)
-        
+        if isochrone:
+            isochrone = pd.DataFrame(isochrone)
+        else:
+            isochrone = self.get_isochrone(logage=logage,mh=mh, dm=dm)
+        isochrone.to_csv('/home/shenyueyue/Projects/Cluster/data/iso')
         # step 2: sample isochrone -> n_stars [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn]
         # single stars + binaries
         sample_syn = self.sample_imf(fb, isochrone, n_stars)
@@ -181,6 +192,10 @@ class MockCMD:
         m = sample[band_a]
         c = sample[band_b] - sample[band_c]
         return c,m
+    
+    # @staticmethod
+    # def draw_CMD(c,m):
+        
 
     @staticmethod
     def hist2d_norm(c, m, c_grid=(0, 3, 0.1), m_grid=(6, 16, 0.1) ): #def hist2d(*sample.T,...):
@@ -210,28 +225,28 @@ def main():
     sample_syn = m.mock_stars(theta,n_stars)
     c_syn, m_syn = MockCMD.extract_CMD(sample_syn, band_a='Gmag_syn', band_b='G_BPmag_syn', band_c='G_RPmag_syn')
     c_obs, m_obs = MockCMD.extract_CMD(sample_obs, band_a='Gmag', band_b='G_BPmag', band_c='G_RPmag')
+    
+    c_label='BP-RP (mag)'
+    m_label='G (mag)'
+    fig,ax = plt.subplots(nrows=1,ncols=2,figsize=(8,4))
+    ax[0].set_title('after estimate_syn_photoerror')
+    ax[0].scatter(c_syn,m_syn,s=2)
+    ax[0].invert_yaxis()
+    ax[0].set_xlabel(c_label)
+    ax[0].set_ylabel(m_label)
+    # ax[0].set_xlim(min(c_obs),max(c_obs))
+    # ax[0].set_ylim(max(m_obs),min(m_obs))
+    
+    ax[1].set_title('obs CMD')
+    ax[1].scatter(c_obs,m_obs,s=2,label='obs')
+    ax[1].invert_yaxis()
+    ax[1].set_xlabel(c_label)
+    ax[1].set_ylabel(m_label)
+    plt.show()
+    
+    
 
 if __name__=="__main__":
     main()
     
-#%%
-import numpy as np
-c_grid=(0, 3, 0.1)
-cstart,cend,cstep = c_grid
-np.arange(cstart,cend,cstep)
 
-from matplotlib.image import NonUniformImage
-import matplotlib.pyplot as plt
-
-xedges = [0, 1, 3, 5]
-yedges = [0, 2, 3, 4, 6]
-
-x = np.random.normal(2, 1, 100)
-y = np.random.normal(1, 1, 100)
-H, xedges, yedges = np.histogram2d(x, y, bins=(xedges, yedges))
-print(H)
-print('\n')
-print(H[0])
-print(np.sum(H))
-print(H/np.sum(H))
-# %%

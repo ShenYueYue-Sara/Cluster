@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.interpolate as interpolate
-py_dir = os.path.dirname(sys.argv[0])
-spline_csv = os.path.join(py_dir,'LogErrVsMagSpline.csv')
+module_dir = os.path.dirname(__file__)
+spline_csv = os.path.join(module_dir,'LogErrVsMagSpline.csv')
 
 class Edr3LogMagUncertainty(object):
     """
