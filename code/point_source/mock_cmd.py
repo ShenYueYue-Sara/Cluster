@@ -152,30 +152,33 @@ class MockCMD:
             g_syn, bp_syn, rp_syn = e.syn_sample_photoerr(sample_syn=sample_syn)
             sample_syn[self.bands[0]+'_syn'], sample_syn[self.bands[1]+'_syn'], sample_syn[self.bands[2]+'_syn'] = g_syn, bp_syn, rp_syn
             sample_syn[self.bands[0]+'_err_syn'], sample_syn[self.bands[1]+'_err_syn'], sample_syn[self.bands[2]+'_err_syn'] = g_med_err, bp_med_err, rp_med_err
+        '''
         # method 2 : fit mag_magerr relation in sample_obs for each cluster directly
-        # if 'bands' in kwargs: # sample_obs have DIFFERENT band name/order with sample_syn
-        #     print('NOTE! PLEASE ENTER THE OBSERVATION BAND ORDER ALIGNED WITH %s'%(self.bands))
-        #     bands = kwargs['bands']
-        # bands = self.bands # sample_obs have SAME band name with sample_syn
-        # if 'bands_err' in kwargs:
-        #     bands_err = kwargs['bands_err']
-        # bands_err = ['%s_err'%band for band in bands]
-        # # fit mag_magerr relation for each band
-        # for band,band_err in zip(bands,bands_err):
-        #     x, y = sample_obs[band], sample_obs[band_err]
-        #     mask = ~np.isnan(x) & ~np.isnan(y)
-        #     x, y = x[mask], y[mask]
-        #     mag_magerr = np.polyfit(x,y,3)
+        # wait for developing
+        if 'bands' in kwargs: # sample_obs have DIFFERENT band name/order with sample_syn
+            print('NOTE! PLEASE ENTER THE OBSERVATION BAND ORDER ALIGNED WITH %s'%(self.bands))
+            bands = kwargs['bands']
+        bands = self.bands # sample_obs have SAME band name with sample_syn
+        if 'bands_err' in kwargs:
+            bands_err = kwargs['bands_err']
+        bands_err = ['%s_err'%band for band in bands]
+        # fit mag_magerr relation for each band
+        for band,band_err in zip(bands,bands_err):
+            x, y = sample_obs[band], sample_obs[band_err]
+            mask = ~np.isnan(x) & ~np.isnan(y)
+            x, y = x[mask], y[mask]
+            mag_magerr = np.polyfit(x,y,3)
+        '''
         return  sample_syn # a sample of mock stars WITH band error added [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn, _err_syn]
 
     def mock_stars(self, theta, n_stars, isochrone=None):
-        logage, mh, fb, dm, Av = theta # mag_min, mag_max not included yet!
-        print(logage, mh, dm)
+        logage, mh, fb, dm = theta # Av, mag_min, mag_max not included yet!
         # step 1: logage, m_h -> isochrone [mass, G, BP, RP]
         if isochrone:
             isochrone = pd.DataFrame(isochrone)
         else:
             isochrone = self.get_isochrone(logage=logage,mh=mh, dm=dm)
+            
         # step 2: sample isochrone -> n_stars [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn]
         # single stars + binaries
         sample_syn = self.sample_imf(fb, isochrone, n_stars)
@@ -183,13 +186,15 @@ class MockCMD:
         for _ in self.bands: 
             sample_syn[_+'_syn'] += dm
         # sample -> [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn]
+        
         '''
-        draw CMD for checking
+        # draw CMD for checking
         c_2, m_2 = MockCMD.extract_CMD(sample_syn, band_a='Gmag_syn', band_b='G_BPmag_syn', band_c='G_RPmag_syn')
         fig,ax = plt.subplots(figsize=(5,5))
         ax.scatter(c_2,m_2,s=2,label='<-- add dm & sampleIMF -- isochrone')
         ax.set_ylabel('G (mag)')
         ax.set_xlabel('BP-RP (mag)')
+        ax.invert_yaxis()
         ax.set_title('isochrone --> sampleIMF --> add dm')
         plt.show()
         '''
@@ -212,7 +217,7 @@ class MockCMD:
         
 
     @staticmethod
-    def hist2d_norm(c, m, c_grid=(0, 3, 0.1), m_grid=(6, 16, 0.1) ): #def hist2d(*sample.T,...):
+    def hist2d_norm(c, m, c_grid=(0, 3, 0.1), m_grid=(6, 16, 0.1)): #def hist2d(*sample.T,...):
         # adaptive grid wait for developing
         # define grid edges
         cstart,cend,cstep = c_grid
@@ -220,13 +225,14 @@ class MockCMD:
         c_bin = np.arange(cstart,cend,cstep)
         m_bin = np.arange(mstart,mend,mstep)
         H,_,_ = np.histogram2d(c, m, bins=(c_bin, m_bin))
-        H = H / np.sum(H)
+        H = H / np.sum(H)   
         return H
 
-    def eval_lnlikelihood(c_obs, m_obs, c_syn, m_syn, c_grid=(0, 3, 0.1), m_grid=(6, 16, 0.1) ):
-        H_obs = MockCMD.hist2d_norm(c_obs, m_obs, c_grid, m_grid)
-        H_syn = MockCMD.hist2d_norm(c_syn, m_syn, c_grid, m_grid)
-        chi2 = np.sum(np.square(H_obs - H_syn) / H_obs)
+    def eval_lnlikelihood(self, c_obs, m_obs, c_syn, m_syn, c_grid=(0.1, 3.1, 0.1), m_grid=(6.1, 16.1, 0.1)):
+        H_obs = MockCMD.hist2d_norm(c=c_obs, m=m_obs, c_grid=c_grid, m_grid=m_grid)
+        H_syn = MockCMD.hist2d_norm(c=c_syn, m=m_syn, c_grid=c_grid, m_grid=m_grid)
+        non_zero_idx = np.where(H_obs > 0) # get indices of non-zero bins in H_obs
+        chi2 = np.sum(np.square(H_obs[non_zero_idx] - H_syn[non_zero_idx]) / H_obs[non_zero_idx])
         return -1/2*chi2
     
 def main():
@@ -240,7 +246,11 @@ def main():
     sample_syn = m.mock_stars(theta,n_stars)
     c_syn, m_syn = MockCMD.extract_CMD(sample_syn, band_a='Gmag_syn', band_b='G_BPmag_syn', band_c='G_RPmag_syn')
     c_obs, m_obs = MockCMD.extract_CMD(sample_obs, band_a='Gmag', band_b='G_BPmag', band_c='G_RPmag')
+    lnlikelihood = m.eval_lnlikelihood(c_obs, m_obs, c_syn, m_syn)
+    print(lnlikelihood)
     
+    '''
+    # draw CMD for checking
     c_label='BP-RP (mag)'
     m_label='G (mag)'
     fig,ax = plt.subplots(nrows=1,ncols=2,figsize=(8,4))
@@ -258,8 +268,13 @@ def main():
     ax[1].set_xlabel(c_label)
     ax[1].set_ylabel(m_label)
     plt.show()
-    
-    
+    '''
+    # fig,ax = plt.subplots(figsize=(5,5))
+    # ax.scatter(c_syn, m_syn, s=2, c='orange', label='syn data')
+    # ax.scatter(c_obs, m_obs, s=2, c='green', label='obs data')
+    # ax.invert_yaxis()
+    # ax.legend()
+    # plt.show()
 
 if __name__=="__main__":
     main()

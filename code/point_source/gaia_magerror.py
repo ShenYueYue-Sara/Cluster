@@ -160,15 +160,14 @@ def main():
     sample['Gmag_err_syn'], sample['G_BPmag_err_syn'], sample['G_RPmag_err_syn'] = g_med_err, bp_med_err, rp_med_err
     sample['Gmag_syn'], sample['G_BPmag_syn'], sample['G_RPmag_syn'] = g_syn, bp_syn, rp_syn
     sample.to_csv("/home/shenyueyue/Projects/Cluster/data/%s_syn.csv"%name,index=False)
-    
     '''
     # draw mag-magerr for result checking
     # obsmag -- MagError --> synmag(witherr)
     fig,ax = plt.subplots(nrows=1,ncols=4,figsize=(22,4))
     bands = ['Gmag','G_BPmag','G_RPmag']
     for i,band in enumerate(bands):
-        ax[i].scatter(sample[band], sample['%s_err'%band], s=2, c='green', label='obs data')
-        ax[i].scatter(sample['%s_syn'%band], sample['%s_err_syn'%band], s=2, c='orange', label='syn data')
+        ax[i].scatter(sample[band], np.log10(sample['%s_err'%band]), s=2, c='green', label='obs data')
+        ax[i].scatter(sample['%s_syn'%band], np.log10(sample['%s_err_syn'%band]), s=2, c='orange', label='syn data')
         ax[i].set_ylabel('%s_err'%band)
         ax[i].set_xlabel(band)
         if i == 1:
