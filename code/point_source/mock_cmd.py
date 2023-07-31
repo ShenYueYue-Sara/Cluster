@@ -34,8 +34,8 @@ class MockCMD:
         return med_nobs
             
     def get_isochrone(self, model="parsec", **kwargs):
-        logage = kwargs['logage']
-        mh = kwargs['mh']
+        logage =np.round(kwargs['logage'], decimals=2)
+        mh = np.round(kwargs['mh'], decimals=2)
         dm = kwargs['dm']
         if self.isochrones_dir:
             isochrone_path = self.isochrones_dir+'/iso_age_%s_mh_%s.csv'%(logage,mh)
@@ -68,7 +68,7 @@ class MockCMD:
                 id = np.where(isochrone['label']==i)[0]
                 isochrone.loc[id,'phase'] = self.phase[i]
         # save isochrone file
-        if self.isochrones_dir and isochrone_path is None: 
+        if not os.path.exists(isochrone_path): 
             isochrone.to_csv(isochrone_path,index=False)
         # a truncated isochrone (label), so mass_min and mass_max defined
         return isochrone
@@ -233,15 +233,14 @@ class MockCMD:
         H_syn = MockCMD.hist2d_norm(c=c_syn, m=m_syn, c_grid=c_grid, m_grid=m_grid)
         non_zero_idx = np.where(H_obs > 0) # get indices of non-zero bins in H_obs
         chi2 = np.sum(np.square(H_obs[non_zero_idx] - H_syn[non_zero_idx]) / H_obs[non_zero_idx])
-        return -1/2*chi2
+        return -0.5*chi2
     
 def main():
     name = 'Melotte_22'
     sample_obs = pd.read_csv("/home/shenyueyue/Projects/Cluster/data/Cantat-Gaudin_2020/%s.csv"%(name))
-    
     isochrones_dir = '/home/shenyueyue/Projects/Cluster/data/isocForMockCMD'
     m = MockCMD(sample_obs=sample_obs,isochrones_dir=isochrones_dir)
-    theta = (7.89, 0.032, 0.35, 5.55, 0)
+    theta = (7.89, 0.032, 0.35, 5.55)
     n_stars = 1000
     sample_syn = m.mock_stars(theta,n_stars)
     c_syn, m_syn = MockCMD.extract_CMD(sample_syn, band_a='Gmag_syn', band_b='G_BPmag_syn', band_c='G_RPmag_syn')
