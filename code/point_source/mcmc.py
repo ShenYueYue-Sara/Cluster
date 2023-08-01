@@ -1,6 +1,7 @@
 import math
 import emcee
 import corner
+import traceback
 import numpy as np
 import pandas as pd
 from mock_cmd import MockCMD
@@ -11,21 +12,28 @@ isochrones_dir = '/home/shenyueyue/Projects/Cluster/data/isocForMockCMD'
 
 def lnlike(theta, n_stars, sample_obs): # logage, mh, fb, dm = theta
     logage, mh, fb, dm = theta
-    if (logage>10.0) or (logage<6.6) or (mh<-2.0) or (mh>0.7) or (fb<0.05) or (fb>1) or (dm<2) or (dm>20):
+    try:
+        if (logage>10.0) or (logage<6.6) or (mh<-2.0) or (mh>0.7) or (fb<0.05) or (fb>1) or (dm<2) or (dm>20):
+            return -1e50
+        m = MockCMD(sample_obs=sample_obs,isochrones_dir=isochrones_dir)
+        sample_syn = m.mock_stars(theta,n_stars)
+        c_syn, m_syn = MockCMD.extract_CMD(sample_syn, band_a='Gmag_syn', band_b='G_BPmag_syn', band_c='G_RPmag_syn')
+        c_obs, m_obs = MockCMD.extract_CMD(sample_obs, band_a='Gmag', band_b='G_BPmag', band_c='G_RPmag')
+        lnlikelihood = m.eval_lnlikelihood(c_obs, m_obs, c_syn, m_syn)
+        if math.isnan(lnlikelihood):
+            return -1e50
+        return lnlikelihood
+    except Exception as e:
+        print("Error parameters: [%f, %f, %f, %f]"%(logage,mh,fb,dm))
+        print(f"Error encountered: {e}")
+        traceback.print_exc()
         return -1e50
-    m = MockCMD(sample_obs=sample_obs,isochrones_dir=isochrones_dir)
-    sample_syn = m.mock_stars(theta,n_stars)
-    c_syn, m_syn = MockCMD.extract_CMD(sample_syn, band_a='Gmag_syn', band_b='G_BPmag_syn', band_c='G_RPmag_syn')
-    c_obs, m_obs = MockCMD.extract_CMD(sample_obs, band_a='Gmag', band_b='G_BPmag', band_c='G_RPmag')
-    lnlikelihood = m.eval_lnlikelihood(c_obs, m_obs, c_syn, m_syn)
-    if math.isnan(lnlikelihood):
-        return -1e50
-    return lnlikelihood
 
 def main():
     name = 'Melotte_22'
-    sample_obs = pd.read_csv("/home/shenyueyue/Projects/Cluster/data/Cantat-Gaudin_2020/%s.csv"%(name))
-    
+    usecols = ['Gmag','G_BPmag','G_RPmag','phot_g_n_obs','phot_bp_n_obs','phot_rp_n_obs']
+    sample_obs = pd.read_csv("/home/shenyueyue/Projects/Cluster/data/Cantat-Gaudin_2020/%s.csv"%(name), usecols=usecols)
+    sample_obs = sample_obs.dropna().reset_index(drop=True)
     # theta = (7.89, 0.032, 0.35, 5.55)
     # logage, mh, fb, dm = theta
     n_stars = 1000
@@ -42,11 +50,12 @@ def main():
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnlike, args=(n_stars, sample_obs), moves=moves)
     
     # burn-in
-    nburn = 25
+    nburn = 50
     pos,_,_ = sampler.run_mcmc(p0, nburn, progress=True)
+    
     sampler.reset()
     # run the MCMC sampler
-    nsteps = 100
+    nsteps = 200
     sampler.run_mcmc(pos, nsteps, progress=True)
     
     samples = sampler.chain[:, :, :].reshape((-1, ndim))
