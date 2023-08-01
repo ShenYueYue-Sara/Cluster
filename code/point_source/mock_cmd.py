@@ -1,9 +1,10 @@
 import os
+import time
+import random
 import numpy as np
 import pandas as pd
-from scipy import integrate
 from berliner import CMD
-import random
+from scipy import integrate
 from scipy import interpolate
 from gaia_magerror import  MagError
 import matplotlib.pyplot as plt
@@ -225,8 +226,7 @@ class MockCMD:
     
     # @staticmethod
     # def draw_CMD(c,m):
-        
-
+    
     @staticmethod
     def hist2d_norm(c, m, c_grid=(0, 3, 0.1), m_grid=(6, 16, 0.1)): #def hist2d(*sample.T,...):
         # adaptive grid wait for developing
@@ -236,14 +236,15 @@ class MockCMD:
         c_bin = np.arange(cstart,cend,cstep)
         m_bin = np.arange(mstart,mend,mstep)
         H,_,_ = np.histogram2d(c, m, bins=(c_bin, m_bin))
-        H = H / np.sum(H)   
+        # H = H / np.sum(H)   
         return H
 
-    def eval_lnlikelihood(self, c_obs, m_obs, c_syn, m_syn, c_grid=(0.1, 3.1, 0.1), m_grid=(6.1, 16.1, 0.1)):
+    def eval_lnlikelihood(self, c_obs, m_obs, c_syn, m_syn, c_grid=(0, 3, 0.1), m_grid=(6, 16, 0.1)):
         H_obs = MockCMD.hist2d_norm(c=c_obs, m=m_obs, c_grid=c_grid, m_grid=m_grid)
         H_syn = MockCMD.hist2d_norm(c=c_syn, m=m_syn, c_grid=c_grid, m_grid=m_grid)
-        non_zero_idx = np.where(H_obs > 0) # get indices of non-zero bins in H_obs
-        chi2 = np.sum(np.square(H_obs[non_zero_idx] - H_syn[non_zero_idx]) / H_obs[non_zero_idx])
+        # non_zero_idx = np.where(H_obs > 0) # get indices of non-zero bins in H_obs
+        # chi2 = np.sum(np.square(H_obs[non_zero_idx] - H_syn[non_zero_idx]) / H_obs[non_zero_idx])
+        chi2 = np.sum( np.square(H_obs - H_syn) / np.sqrt((H_obs+1) * (H_syn+1)) ) 
         return -0.5*chi2
     
 def main():
@@ -287,7 +288,6 @@ def main():
     # ax.invert_yaxis()
     # ax.legend()
     # plt.show()
-    
     
 
 if __name__=="__main__":
