@@ -75,30 +75,35 @@ class MockCMD:
     
     def set_imf(self, imf='kroupa_2001', alpha=2):
         if imf == 'kroupa_2001':
-            self.imf = lambda x: 2 * x ** -1.3 if x < 0.5 else x ** -2.3  # x2 for scale
+            # np.where(condition, x, y) if condition==True:x    else:y
+            self.imf = lambda x: np.where(x < 0.5, 2 * x ** -1.3, x ** -2.3)  # x2 for scale
         elif imf == 'salpeter':
             self.imf = lambda x: x ** -2.35
         elif imf == 'chabrier':
-            self.imf = lambda x: x ** -1.55 if x < 1.0 else x ** -2.7
-    
+            self.imf = lambda x: np.where(x < 1.0, x ** -1.55, x ** -2.7)
+        
     def pdf_imf(self, m_i, mass_min, mass_max):
-        if m_i < mass_min or m_i > mass_max:
-            return 0
-        else:
-            return self.imf(m_i)/integrate.quad(self.imf, mass_min, mass_max)[0]
+        mask = (m_i >= mass_min) & (m_i <= mass_max)
+        return np.where(mask, self.imf(m_i) / integrate.quad(self.imf, mass_min, mass_max)[0], 0)
     
     def random_imf(self, n, mass_min, mass_max):
+        # for i in range(n):
+        #     m_flag = 0
+        #     while m_flag == 0:
+        #         m_x = random.uniform(mass_min,mass_max)
+        #         m_y = random.uniform(0,1)
+        #         if m_y < self.pdf_imf(m_x, mass_min, mass_max)/c:
+        #             mass.append(m_x)
+        #             m_flag = 1
+        # update to run faster
         mass = []
         c = self.pdf_imf(mass_min, mass_min, mass_max)
-        for i in range(n):
-            m_flag = 0
-            while m_flag == 0:
-                m_x = random.uniform(mass_min,mass_max)
-                m_y = random.uniform(0,1)
-                if m_y < self.pdf_imf(m_x, mass_min, mass_max)/c:
-                    mass.append(m_x)
-                    m_flag = 1
-        return mass # a sample of n mass
+        while len(mass) < n : 
+            m_x = np.random.uniform(low=mass_min, high=mass_max, size=n)
+            m_y = np.random.uniform(0, 1, size=n)
+            mask = m_y < self.pdf_imf(m_x, mass_min, mass_max)/c
+            mass.extend(m_x[mask])
+        return mass[:n] # a sample of n mass
     
     def sample_imf(self, fb, isochrone, n_stars, method='simple'):
         n_binary = int(n_stars*fb)
@@ -122,11 +127,17 @@ class MockCMD:
             id_cut = self.phase.index('CHEB')
             range1 = self.phase[0:id_cut]
             range2 = self.phase[id_cut:]
-            mass_cut = min(isochrone[isochrone['phase'].isin(range2)][self.Mini])
             mass_mag_1 = interpolate.interp1d(isochrone[isochrone['phase'].isin(range1)][self.Mini],\
                 isochrone[isochrone['phase'].isin(range1)][band], fill_value='extrapolate')
-            mass_mag_2 = interpolate.interp1d(isochrone[isochrone['phase'].isin(range2)][self.Mini],\
-                isochrone[isochrone['phase'].isin(range2)][band])
+            # if isochrone has phase up to CHEB
+            if isochrone['phase'].isin(range2).any():
+                mass_mag_2 = interpolate.interp1d(isochrone[isochrone['phase'].isin(range2)][self.Mini],\
+                    isochrone[isochrone['phase'].isin(range2)][band])
+                mass_cut = min(isochrone[isochrone['phase'].isin(range2)][self.Mini])
+            # else
+            else:
+                mass_mag_2 = mass_mag_1
+                mass_cut = max(isochrone[isochrone['phase'].isin(range1)][self.Mini])
             # add mag for primary(including single) & secondary star
             for m in ['pri','sec']:
                 sample_syn.loc[sample_syn['mass_%s'%m] < mass_cut, '%s_%s'%(band,m)] = \
@@ -240,6 +251,7 @@ def main():
     sample_obs = pd.read_csv("/home/shenyueyue/Projects/Cluster/data/Cantat-Gaudin_2020/%s.csv"%(name))
     isochrones_dir = '/home/shenyueyue/Projects/Cluster/data/isocForMockCMD'
     m = MockCMD(sample_obs=sample_obs,isochrones_dir=isochrones_dir)
+    # theta = (6.83057773,-0.69887683,0.65960583,8.56889242)
     theta = (7.89, 0.032, 0.35, 5.55)
     n_stars = 1000
     sample_syn = m.mock_stars(theta,n_stars)
@@ -274,6 +286,8 @@ def main():
     # ax.invert_yaxis()
     # ax.legend()
     # plt.show()
+    
+    
 
 if __name__=="__main__":
     main()
