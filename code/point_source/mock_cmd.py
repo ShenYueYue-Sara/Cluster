@@ -132,7 +132,7 @@ class MockCMD:
             # if isochrone has phase up to CHEB
             if isochrone['phase'].isin(range2).any():
                 mass_mag_2 = interpolate.interp1d(isochrone[isochrone['phase'].isin(range2)][self.Mini],\
-                    isochrone[isochrone['phase'].isin(range2)][band])
+                    isochrone[isochrone['phase'].isin(range2)][band], fill_value='extrapolate')
                 mass_cut = min(isochrone[isochrone['phase'].isin(range2)][self.Mini])
             # else
             else:
@@ -252,7 +252,8 @@ def main():
     isochrones_dir = '/home/shenyueyue/Projects/Cluster/data/isocForMockCMD'
     m = MockCMD(sample_obs=sample_obs,isochrones_dir=isochrones_dir)
     # theta = (6.83057773,-0.69887683,0.65960583,8.56889242)
-    theta = (7.89, 0.032, 0.35, 5.55)
+    # theta = (7.89, 0.032, 0.35, 5.55) 
+    theta = (7.14912235, -0.0367144, 0.5131032, 10.09228475)
     n_stars = 1000
     sample_syn = m.mock_stars(theta,n_stars)
     c_syn, m_syn = MockCMD.extract_CMD(sample_syn, band_a='Gmag_syn', band_b='G_BPmag_syn', band_c='G_RPmag_syn')
