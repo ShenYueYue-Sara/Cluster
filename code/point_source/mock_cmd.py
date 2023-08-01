@@ -1,6 +1,7 @@
 import os
 import time
 import random
+import logging
 import numpy as np
 import pandas as pd
 from berliner import CMD
@@ -10,6 +11,13 @@ from gaia_magerror import  MagError
 import matplotlib.pyplot as plt
 plt.style.use("default")
 
+# cofiguring log output to logfile
+logs_dir = '/home/shenyueyue/Projects/Cluster/logs/'
+logging.basicConfig(filename=os.path.join(logs_dir,'total.log'),
+                    level=logging.INFO,
+                    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s'
+                    ) # filemode='w'
+
 class MockCMD:
     """
     mCMD = MockCMD(sample_obs)
@@ -18,6 +26,7 @@ class MockCMD:
     """
 
     def __init__(self, photsyn="gaiaDR2", sample_obs=None, isochrones_dir=None): # better give sample_obs!! another way is untested
+        start_time = time.time()
         self.photsyn = photsyn
         if sample_obs is not None:
             self.n_obs = len(sample_obs) # necessary? add sample_obs=None
@@ -27,6 +36,9 @@ class MockCMD:
             self.isochrones_dir = isochrones_dir
         self.set_imf()
         # adaptive c_grid, m_grid
+        end_time = time.time()
+        run_time = end_time - start_time
+        logging.info(f"time init() : {run_time:.4f} s")
 
     @staticmethod # Static methods do not need to be instantiated
     def extract_hyper(sample_obs):
@@ -35,6 +47,7 @@ class MockCMD:
         return med_nobs
             
     def get_isochrone(self, model="parsec", **kwargs):
+        start_time = time.time()
         logage =np.round(kwargs['logage'], decimals=2)
         mh = np.round(kwargs['mh'], decimals=2)
         dm = kwargs['dm']
@@ -72,6 +85,9 @@ class MockCMD:
         if not os.path.exists(isochrone_path): 
             isochrone.to_csv(isochrone_path,index=False)
         # a truncated isochrone (label), so mass_min and mass_max defined
+        end_time = time.time()
+        run_time = end_time - start_time
+        logging.info(f"time get_isochrone() : {run_time:.4f} s")
         return isochrone
     
     def set_imf(self, imf='kroupa_2001', alpha=2):
@@ -97,16 +113,21 @@ class MockCMD:
         #             mass.append(m_x)
         #             m_flag = 1
         # update to run faster
+        start_time = time.time()
         mass = []
         c = self.pdf_imf(mass_min, mass_min, mass_max)
         while len(mass) < n : 
             m_x = np.random.uniform(low=mass_min, high=mass_max, size=n)
             m_y = np.random.uniform(0, 1, size=n)
             mask = m_y < self.pdf_imf(m_x, mass_min, mass_max)/c
-            mass.extend(m_x[mask])
+            mass.extend(m_x[mask])  
+        end_time = time.time()
+        run_time = end_time - start_time
+        logging.info(f"time random_imf() : {run_time:.4f} s")
         return mass[:n] # a sample of n mass
     
     def sample_imf(self, fb, isochrone, n_stars, method='simple'):
+        start_time = time.time()
         n_binary = int(n_stars*fb)
         sample_syn = pd.DataFrame(np.zeros((n_stars,1)), columns=['mass_pri'])
         sample_syn['mass_pri'] = self.random_imf(n_stars, self.mass_min, self.mass_max)
@@ -149,9 +170,13 @@ class MockCMD:
             sample_syn['%s_syn'%band] = sample_syn['%s_pri'%band]
             sample_syn.loc[secindex,'%s_syn'%band] = \
                 -2.5*np.log10( pow(10,-0.4*sample_syn.loc[secindex,'%s_pri'%band]) + pow(10,-0.4*sample_syn.loc[secindex,'%s_sec'%band]))
+        end_time = time.time()
+        run_time = end_time - start_time
+        logging.info(f"time sample_imf() : {run_time:.4f} s")        
         return sample_syn # a sample of mock single & binaries stars [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn] 
     
     def estimate_syn_photoerror(self, sample_syn, **kwargs): # bands=['Gmag','G_BPmag','G_RPmag'],bands_err=['Gmag_err','G_BPmag_err','G_RPmag_err']
+        start_time = time.time()
         # add photoerror for sample_syn
         # method 1 , wait for developing : interpolate & scale Edr3LogMagUncertainty
         if self.photsyn == "gaiaDR2":
@@ -181,9 +206,13 @@ class MockCMD:
             x, y = x[mask], y[mask]
             mag_magerr = np.polyfit(x,y,3)
         '''
+        end_time = time.time()
+        run_time = end_time - start_time
+        logging.info(f"time estimate_syn_photoerror() : {run_time:.4f} s")    
         return  sample_syn # a sample of mock stars WITH band error added [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn, _err_syn]
 
     def mock_stars(self, theta, n_stars, isochrone=None):
+        start_time = time.time()
         logage, mh, fb, dm = theta # Av, mag_min, mag_max not included yet!
         # step 1: logage, m_h -> isochrone [mass, G, BP, RP]
         if isochrone:
@@ -216,6 +245,9 @@ class MockCMD:
         # add uncertainties
         # sample -> [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn, _err_syn]
         sample_syn = self.estimate_syn_photoerror(sample_syn)
+        end_time = time.time()
+        run_time = end_time - start_time
+        logging.info(f"time mock_starts() : {run_time:.4f} s")           
         return  sample_syn# sample
     
     @staticmethod
@@ -240,22 +272,31 @@ class MockCMD:
         return H
 
     def eval_lnlikelihood(self, c_obs, m_obs, c_syn, m_syn, c_grid=(0, 3, 0.1), m_grid=(6, 16, 0.1)):
+        start_time = time.time()
         H_obs = MockCMD.hist2d_norm(c=c_obs, m=m_obs, c_grid=c_grid, m_grid=m_grid)
         H_syn = MockCMD.hist2d_norm(c=c_syn, m=m_syn, c_grid=c_grid, m_grid=m_grid)
         # non_zero_idx = np.where(H_obs > 0) # get indices of non-zero bins in H_obs
         # chi2 = np.sum(np.square(H_obs[non_zero_idx] - H_syn[non_zero_idx]) / H_obs[non_zero_idx])
         chi2 = np.sum( np.square(H_obs - H_syn) / np.sqrt((H_obs+1) * (H_syn+1)) ) 
+        end_time = time.time()
+        run_time = end_time - start_time
+        logging.info(f"time eval_lnlikelihood() : {run_time:.4f} s")   
         return -0.5*chi2
     
 def main():
     name = 'Melotte_22'
-    sample_obs = pd.read_csv("/home/shenyueyue/Projects/Cluster/data/Cantat-Gaudin_2020/%s.csv"%(name))
     isochrones_dir = '/home/shenyueyue/Projects/Cluster/data/isocForMockCMD'
-    m = MockCMD(sample_obs=sample_obs,isochrones_dir=isochrones_dir)
+    usecols = ['Gmag','G_BPmag','G_RPmag','phot_g_n_obs','phot_bp_n_obs','phot_rp_n_obs']
+    sample_obs = pd.read_csv("/home/shenyueyue/Projects/Cluster/data/Cantat-Gaudin_2020/%s.csv"%(name), usecols=usecols)
+    sample_obs = sample_obs.dropna().reset_index(drop=True)
+    
     # theta = (6.83057773,-0.69887683,0.65960583,8.56889242)
-    # theta = (7.89, 0.032, 0.35, 5.55) 
-    theta = (7.14912235, -0.0367144, 0.5131032, 10.09228475)
-    n_stars = 1000
+    # theta = (7.14912235, -0.0367144, 0.5131032, 10.09228475)
+    theta = (7.89, 0.032, 0.35, 5.55) 
+    # theta = (8.89, 0.032, 0.35, 5.55)
+    n_stars = 942
+    
+    m = MockCMD(sample_obs=sample_obs,isochrones_dir=isochrones_dir)
     sample_syn = m.mock_stars(theta,n_stars)
     c_syn, m_syn = MockCMD.extract_CMD(sample_syn, band_a='Gmag_syn', band_b='G_BPmag_syn', band_c='G_RPmag_syn')
     c_obs, m_obs = MockCMD.extract_CMD(sample_obs, band_a='Gmag', band_b='G_BPmag', band_c='G_RPmag')
@@ -289,7 +330,6 @@ def main():
     # ax.legend()
     # plt.show()
     
-
 if __name__=="__main__":
     main()
     
