@@ -1,12 +1,14 @@
 import os
 import time
 import random
+import joblib
 import logging
 import numpy as np
 import pandas as pd
 from berliner import CMD
 from scipy import integrate
 from scipy import interpolate
+
 from gaia_magerror import  MagError
 import matplotlib.pyplot as plt
 plt.style.use("default")
@@ -15,8 +17,19 @@ plt.style.use("default")
 logs_dir = '/home/shenyueyue/Projects/Cluster/logs/'
 logging.basicConfig(filename=os.path.join(logs_dir,'total.log'),
                     level=logging.INFO,
-                    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s'
-                    ) # filemode='w'
+                    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+                    filemode='w') 
+
+def round_to_step(arr,step):
+    result = np.round(arr / step) * step
+    '''
+    # draw round result
+    plt.scatter(nums,result)
+    plt.title(f"step = {step}")
+    plt.xlabel('before round')
+    plt.ylabel('after round to step')
+    '''
+    return result
 
 class MockCMD:
     """
@@ -48,14 +61,15 @@ class MockCMD:
             
     def get_isochrone(self, model="parsec", **kwargs):
         start_time = time.time()
-        logage =np.round(kwargs['logage'], decimals=2)
-        mh = np.round(kwargs['mh'], decimals=2)
+        logage = round_to_step(kwargs['logage'], step=kwargs['logage_step'])
+        mh = round_to_step(kwargs['mh'], step=kwargs['mh_step'])
         dm = kwargs['dm']
         if self.isochrones_dir:
-            isochrone_path = self.isochrones_dir+'/iso_age_%s_mh_%s.csv'%(logage,mh)
+            isochrone_path = self.isochrones_dir+f"age{logage:+.2f}_mh{mh:+.2f}.joblib"
         # get isochrone file
         if os.path.exists(isochrone_path):
-            isochrone = pd.read_csv(isochrone_path)
+            #isochrone = pd.read_csv(isochrone_path)
+            isochrone = joblib.load(isochrone_path)
         else:
             if model == 'parsec' and self.photsyn == 'gaiaDR2':
                 c = CMD() # initialize berliner CMD
@@ -83,7 +97,8 @@ class MockCMD:
                 isochrone.loc[id,'phase'] = self.phase[i]
         # save isochrone file
         if not os.path.exists(isochrone_path): 
-            isochrone.to_csv(isochrone_path,index=False)
+            #isochrone.to_csv(isochrone_path,index=False)
+            joblib.dump(isochrone, isochrone_path)
         # a truncated isochrone (label), so mass_min and mass_max defined
         end_time = time.time()
         run_time = end_time - start_time
@@ -211,14 +226,15 @@ class MockCMD:
         logging.info(f"time estimate_syn_photoerror() : {run_time:.4f} s")    
         return  sample_syn # a sample of mock stars WITH band error added [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn, _err_syn]
 
-    def mock_stars(self, theta, n_stars, isochrone=None):
+    def mock_stars(self, theta, n_stars, step, isochrone=None):
         start_time = time.time()
         logage, mh, fb, dm = theta # Av, mag_min, mag_max not included yet!
+        logage_step, mh_step = step
         # step 1: logage, m_h -> isochrone [mass, G, BP, RP]
         if isochrone:
             isochrone = pd.DataFrame(isochrone)
         else:
-            isochrone = self.get_isochrone(logage=logage,mh=mh, dm=dm)
+            isochrone = self.get_isochrone(logage=logage,mh=mh, dm=dm, logage_step=logage_step, mh_step=mh_step)
             
         # step 2: sample isochrone -> n_stars [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn]
         # single stars + binaries
@@ -285,19 +301,20 @@ class MockCMD:
     
 def main():
     name = 'Melotte_22'
-    isochrones_dir = '/home/shenyueyue/Projects/Cluster/data/isocForMockCMD'
+    isochrones_dir = '/home/shenyueyue/Projects/Cluster/data/isocForMockCMD/'
     usecols = ['Gmag','G_BPmag','G_RPmag','phot_g_n_obs','phot_bp_n_obs','phot_rp_n_obs']
     sample_obs = pd.read_csv("/home/shenyueyue/Projects/Cluster/data/Cantat-Gaudin_2020/%s.csv"%(name), usecols=usecols)
     sample_obs = sample_obs.dropna().reset_index(drop=True)
     
     # theta = (6.83057773,-0.69887683,0.65960583,8.56889242)
     # theta = (7.14912235, -0.0367144, 0.5131032, 10.09228475)
+    step = (0.05, 0.1)
     theta = (7.89, 0.032, 0.35, 5.55) 
     # theta = (8.89, 0.032, 0.35, 5.55)
     n_stars = 942
     
     m = MockCMD(sample_obs=sample_obs,isochrones_dir=isochrones_dir)
-    sample_syn = m.mock_stars(theta,n_stars)
+    sample_syn = m.mock_stars(theta,n_stars,step)
     c_syn, m_syn = MockCMD.extract_CMD(sample_syn, band_a='Gmag_syn', band_b='G_BPmag_syn', band_c='G_RPmag_syn')
     c_obs, m_obs = MockCMD.extract_CMD(sample_obs, band_a='Gmag', band_b='G_BPmag', band_c='G_RPmag')
     lnlikelihood = m.eval_lnlikelihood(c_obs, m_obs, c_syn, m_syn)
