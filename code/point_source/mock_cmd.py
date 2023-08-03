@@ -15,29 +15,38 @@ plt.style.use("default")
 
 # cofiguring log output to logfile
 logs_dir = '/home/shenyueyue/Projects/Cluster/logs/'
-logging.basicConfig(filename=os.path.join(logs_dir,'total.log'),
-                    level=logging.INFO,
-                    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
-                    filemode='w') 
+logging.basicConfig(
+    filename=os.path.join(logs_dir,'total.log'),
+    level=logging.INFO,
+    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+    filemode='w') 
 
 def round_to_step(arr,step):
     result = np.round(arr / step) * step
-    '''
+    """
     # draw round result
     plt.scatter(nums,result)
     plt.title(f"step = {step}")
     plt.xlabel('before round')
     plt.ylabel('after round to step')
-    '''
+    """
     return result
 
-class MockCMD:
+class MockCMD(object):
+    """ from isochrone mock CMD
+    
+    Attributes
+    ----------
+        photsyn:
+        n_obs:
+        med_nobs:
+        isochrones_dir:
+        bands:
+        Mini:
+        mass_min, mass_max:
+        phase:
+        imf:
     """
-    mCMD = MockCMD(sample_obs)
-    sample_syn = mCMD.mock_stars(theta)
-    cmd = mCMD.hist2d(sample, c_grid, m_grid)
-    """
-
     def __init__(self, photsyn="gaiaDR2", sample_obs=None, isochrones_dir=None): # better give sample_obs!! another way is untested
         start_time = time.time()
         self.photsyn = photsyn
@@ -55,11 +64,18 @@ class MockCMD:
 
     @staticmethod # Static methods do not need to be instantiated
     def extract_hyper(sample_obs):
-        # hyper for estimate_photoerror
+        """Hyper for estimate_photoerror."""
         med_nobs = MagError.extract_med_nobs(sample_obs)
         return med_nobs
             
     def get_isochrone(self, model="parsec", **kwargs):
+        """Get isochorne from Web or local.
+        
+        Returns
+        -------
+            A truncate isochrone containing stellar evolutionary phase from PMS to EAGB.
+            Meanwhile, Save it to isochrone_path.
+        """
         start_time = time.time()
         logage = round_to_step(kwargs['logage'], step=kwargs['logage_step'])
         mh = round_to_step(kwargs['mh'], step=kwargs['mh_step'])
@@ -68,7 +84,6 @@ class MockCMD:
             isochrone_path = self.isochrones_dir+f"age{logage:+.2f}_mh{mh:+.2f}.joblib"
         # get isochrone file
         if os.path.exists(isochrone_path):
-            #isochrone = pd.read_csv(isochrone_path)
             isochrone = joblib.load(isochrone_path)
         else:
             if model == 'parsec' and self.photsyn == 'gaiaDR2':
@@ -84,7 +99,6 @@ class MockCMD:
         # extract info from isochrone 
         if self.photsyn == 'gaiaDR2':
             mag_max = 18
-            self.logteff = 'logTe'
             self.bands = ['Gmag','G_BPmag','G_RPmag']
             self.Mini = 'Mini'
             self.mass_min = min(isochrone[ (isochrone['Gmag']+dm) <= mag_max ][self.Mini])
@@ -92,12 +106,10 @@ class MockCMD:
             # add evolutionary phase info
             self.phase = ['PMS','MS','SGB','RGB','CHEB','CHEB_b','CHEB_r','EAGB']
             for i in range(8):
-                # isochrone[isochrone['label']==i]['phase'] = self.phase[i]
                 id = np.where(isochrone['label']==i)[0]
                 isochrone.loc[id,'phase'] = self.phase[i]
         # save isochrone file
         if not os.path.exists(isochrone_path): 
-            #isochrone.to_csv(isochrone_path,index=False)
             joblib.dump(isochrone, isochrone_path)
         # a truncated isochrone (label), so mass_min and mass_max defined
         end_time = time.time()
@@ -119,15 +131,11 @@ class MockCMD:
         return np.where(mask, self.imf(m_i) / integrate.quad(self.imf, mass_min, mass_max)[0], 0)
     
     def random_imf(self, n, mass_min, mass_max):
-        # for i in range(n):
-        #     m_flag = 0
-        #     while m_flag == 0:
-        #         m_x = random.uniform(mass_min,mass_max)
-        #         m_y = random.uniform(0,1)
-        #         if m_y < self.pdf_imf(m_x, mass_min, mass_max)/c:
-        #             mass.append(m_x)
-        #             m_flag = 1
-        # update to run faster
+        """Generate n stars which mass distribution obey with imf.
+        
+        Returns:
+            A sample of n mass.
+        """
         start_time = time.time()
         mass = []
         c = self.pdf_imf(mass_min, mass_min, mass_max)
@@ -139,7 +147,7 @@ class MockCMD:
         end_time = time.time()
         run_time = end_time - start_time
         logging.info(f"time random_imf() : {run_time:.4f} s")
-        return mass[:n] # a sample of n mass
+        return mass[:n] 
     
     def sample_imf(self, fb, isochrone, n_stars, method='simple'):
         start_time = time.time()
@@ -164,11 +172,13 @@ class MockCMD:
             id_cut = self.phase.index('CHEB')
             range1 = self.phase[0:id_cut]
             range2 = self.phase[id_cut:]
-            mass_mag_1 = interpolate.interp1d(isochrone[isochrone['phase'].isin(range1)][self.Mini],\
+            mass_mag_1 = interpolate.interp1d(
+                isochrone[isochrone['phase'].isin(range1)][self.Mini],
                 isochrone[isochrone['phase'].isin(range1)][band], fill_value='extrapolate')
             # if isochrone has phase up to CHEB
             if isochrone['phase'].isin(range2).any():
-                mass_mag_2 = interpolate.interp1d(isochrone[isochrone['phase'].isin(range2)][self.Mini],\
+                mass_mag_2 = interpolate.interp1d(
+                    isochrone[isochrone['phase'].isin(range2)][self.Mini],
                     isochrone[isochrone['phase'].isin(range2)][band], fill_value='extrapolate')
                 mass_cut = min(isochrone[isochrone['phase'].isin(range2)][self.Mini])
             # else
@@ -177,14 +187,15 @@ class MockCMD:
                 mass_cut = max(isochrone[isochrone['phase'].isin(range1)][self.Mini])
             # add mag for primary(including single) & secondary star
             for m in ['pri','sec']:
-                sample_syn.loc[sample_syn['mass_%s'%m] < mass_cut, '%s_%s'%(band,m)] = \
-                    mass_mag_1(sample_syn[sample_syn['mass_%s'%m] < mass_cut]['mass_%s'%m])
-                sample_syn.loc[sample_syn['mass_%s'%m] >= mass_cut, '%s_%s'%(band,m)] = \
-                    mass_mag_2(sample_syn[sample_syn['mass_%s'%m] >= mass_cut]['mass_%s'%m]) 
+                sample_syn.loc[sample_syn['mass_%s'%m] < mass_cut, '%s_%s'%(band,m)] = (
+                    mass_mag_1(sample_syn[sample_syn['mass_%s'%m] < mass_cut]['mass_%s'%m]))
+                sample_syn.loc[sample_syn['mass_%s'%m] >= mass_cut, '%s_%s'%(band,m)] = (
+                    mass_mag_2(sample_syn[sample_syn['mass_%s'%m] >= mass_cut]['mass_%s'%m])) 
             # add syn mag (for binaries, syn = f(pri,sec) )
             sample_syn['%s_syn'%band] = sample_syn['%s_pri'%band]
-            sample_syn.loc[secindex,'%s_syn'%band] = \
-                -2.5*np.log10( pow(10,-0.4*sample_syn.loc[secindex,'%s_pri'%band]) + pow(10,-0.4*sample_syn.loc[secindex,'%s_sec'%band]))
+            sample_syn.loc[secindex,'%s_syn'%band] = (
+                -2.5*np.log10( pow(10,-0.4*sample_syn.loc[secindex,'%s_pri'%band])
+                 + pow(10,-0.4*sample_syn.loc[secindex,'%s_sec'%band])) )
         end_time = time.time()
         run_time = end_time - start_time
         logging.info(f"time sample_imf() : {run_time:.4f} s")        
@@ -202,8 +213,10 @@ class MockCMD:
                 raise ValueError('please give sample_obs while initial MockCMD()')
             g_med_err, bp_med_err, rp_med_err = e.estimate_med_photoerr(sample_syn=sample_syn)
             g_syn, bp_syn, rp_syn = e.syn_sample_photoerr(sample_syn=sample_syn)
-            sample_syn[self.bands[0]+'_syn'], sample_syn[self.bands[1]+'_syn'], sample_syn[self.bands[2]+'_syn'] = g_syn, bp_syn, rp_syn
-            sample_syn[self.bands[0]+'_err_syn'], sample_syn[self.bands[1]+'_err_syn'], sample_syn[self.bands[2]+'_err_syn'] = g_med_err, bp_med_err, rp_med_err
+            sample_syn[self.bands[0]+'_syn'], sample_syn[self.bands[1]+'_syn'], sample_syn[self.bands[2]+'_syn'] = (
+                g_syn, bp_syn, rp_syn)
+            sample_syn[self.bands[0]+'_err_syn'], sample_syn[self.bands[1]+'_err_syn'], sample_syn[self.bands[2]+'_err_syn'] = (
+                g_med_err, bp_med_err, rp_med_err)
         '''
         # method 2 : fit mag_magerr relation in sample_obs for each cluster directly
         # wait for developing
@@ -234,7 +247,8 @@ class MockCMD:
         if isochrone:
             isochrone = pd.DataFrame(isochrone)
         else:
-            isochrone = self.get_isochrone(logage=logage,mh=mh, dm=dm, logage_step=logage_step, mh_step=mh_step)
+            isochrone = self.get_isochrone(
+                logage=logage,mh=mh, dm=dm, logage_step=logage_step, mh_step=mh_step)
             
         # step 2: sample isochrone -> n_stars [ mass x [_pri, _sec], self.bands x [_pri, _sec, _syn]
         # single stars + binaries
@@ -303,7 +317,8 @@ def main():
     name = 'Melotte_22'
     isochrones_dir = '/home/shenyueyue/Projects/Cluster/data/isocForMockCMD/'
     usecols = ['Gmag','G_BPmag','G_RPmag','phot_g_n_obs','phot_bp_n_obs','phot_rp_n_obs']
-    sample_obs = pd.read_csv("/home/shenyueyue/Projects/Cluster/data/Cantat-Gaudin_2020/%s.csv"%(name), usecols=usecols)
+    sample_obs = pd.read_csv(
+        "/home/shenyueyue/Projects/Cluster/data/Cantat-Gaudin_2020/%s.csv"%(name), usecols=usecols)
     sample_obs = sample_obs.dropna().reset_index(drop=True)
     
     # theta = (6.83057773,-0.69887683,0.65960583,8.56889242)
