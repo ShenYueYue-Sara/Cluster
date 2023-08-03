@@ -138,7 +138,9 @@ def test_MagErr_using_isoc():
         logage=logage,mh=mh, dm=dm, 
         logage_step=logage_step, mh_step=mh_step)
     sample_syn = m.sample_imf(fb, isochrone, n_stars)
-    
+    for _ in m.bands: 
+        sample_syn[_+'_syn'] += dm
+        
     e_dr2 = MagError(
         sample_obs=sample_obs,
         bands=['Gmag_syn','G_BPmag_syn','G_RPmag_syn'],
