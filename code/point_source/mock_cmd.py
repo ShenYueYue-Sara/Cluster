@@ -307,7 +307,9 @@ class MockCMD(object):
         H_syn = MockCMD.hist2d_norm(c=c_syn, m=m_syn, c_grid=c_grid, m_grid=m_grid)
         # non_zero_idx = np.where(H_obs > 0) # get indices of non-zero bins in H_obs
         # chi2 = np.sum(np.square(H_obs[non_zero_idx] - H_syn[non_zero_idx]) / H_obs[non_zero_idx])
-        chi2 = np.sum( np.square(H_obs - H_syn) / np.sqrt((H_obs+1) * (H_syn+1)) ) 
+        # chi2 = np.sum( np.square(H_obs - H_syn) / np.sqrt((H_obs+1) * (H_syn+1)) )
+        chi2 = np.sum( np.square(H_obs - H_syn) / (H_obs + H_syn + 1) )
+        
         end_time = time.time()
         run_time = end_time - start_time
         logging.info(f"time eval_lnlikelihood() : {run_time:.4f} s")   
