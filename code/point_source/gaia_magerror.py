@@ -136,9 +136,30 @@ class MagError(Edr3LogMagUncertainty):
         n_stars = len(sample_syn)
         g_n_obs, bp_n_obs, rp_n_obs = self.random_n_obs(n_stars)
         # step 2 : calculate mag_err when Nobs = 200(for G) / 20(for BP,RP)
-        g_med_err = np.sqrt((10**(self.spline_g(sample_syn[self.bands[0]]) - np.log10(np.sqrt(g_n_obs) / np.sqrt(200))))**2 + (0.0027553202)**2)
-        bp_med_err = np.sqrt((10**(self.spline_bp(sample_syn[self.bands[1]]) - np.log10(np.sqrt(bp_n_obs) / np.sqrt(20))))**2 + (0.0027901700)**2)
-        rp_med_err = np.sqrt((10**(self.spline_rp(sample_syn[self.bands[2]]) - np.log10(np.sqrt(rp_n_obs) / np.sqrt(20))))**2 + (0.0037793818)**2)
+        # g_med_err = np.sqrt(
+        #     ( 10**(self.spline_g(sample_syn[self.bands[0]]) - np.log10(np.sqrt(g_n_obs) / np.sqrt(200))) )**2 
+        #     + (0.0027553202)**2
+        # )
+        # bp_med_err = np.sqrt(
+        #     ( 10**(self.spline_bp(sample_syn[self.bands[1]]) - np.log10(np.sqrt(bp_n_obs) / np.sqrt(20))) )**2 
+        #     + (0.0027901700)**2
+        # )
+        # rp_med_err = np.sqrt(
+        #     ( 10**(self.spline_rp(sample_syn[self.bands[2]]) - np.log10(np.sqrt(rp_n_obs) / np.sqrt(20))) )**2 
+        #     + (0.0037793818)**2
+        # )
+        g_med_err = np.sqrt(
+            ( 10**(self.spline_g(sample_syn[self.bands[0]]) - np.log10(np.sqrt(g_n_obs) / np.sqrt(200)))/0.67 )**2 
+            + (0.0027553202)**2
+        )
+        bp_med_err = np.sqrt(
+            ( 10**(self.spline_bp(sample_syn[self.bands[1]]) - np.log10(np.sqrt(bp_n_obs) / np.sqrt(20)))/0.67 )**2 
+            + (0.0027901700)**2
+        )
+        rp_med_err = np.sqrt(
+            ( 10**(self.spline_rp(sample_syn[self.bands[2]]) - np.log10(np.sqrt(rp_n_obs) / np.sqrt(20)))/0.67 )**2 
+            + (0.0037793818)**2
+        )
         return g_med_err, bp_med_err, rp_med_err
     
     def syn_sample_photoerr(self, sample_syn):
@@ -146,9 +167,12 @@ class MagError(Edr3LogMagUncertainty):
         n_stars = len(sample_syn)
         normal_sample = np.random.normal(size = n_stars)
         g_med_err, bp_med_err, rp_med_err = self.estimate_med_photoerr(sample_syn)
-        g_syn = (g_med_err/0.67) * normal_sample + sample_syn[self.bands[0]]
-        bp_syn = (bp_med_err/0.67) * normal_sample + sample_syn[self.bands[1]]
-        rp_syn = (rp_med_err/0.67) * normal_sample + sample_syn[self.bands[2]]
+        # g_syn = (g_med_err/0.67) * normal_sample + sample_syn[self.bands[0]]
+        # bp_syn = (bp_med_err/0.67) * normal_sample + sample_syn[self.bands[1]]
+        # rp_syn = (rp_med_err/0.67) * normal_sample + sample_syn[self.bands[2]]
+        g_syn = (g_med_err) * normal_sample + sample_syn[self.bands[0]]
+        bp_syn = (bp_med_err) * normal_sample + sample_syn[self.bands[1]]
+        rp_syn = (rp_med_err) * normal_sample + sample_syn[self.bands[2]]
         return g_syn, bp_syn, rp_syn
         
 def main():
