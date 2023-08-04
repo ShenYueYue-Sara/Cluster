@@ -165,10 +165,9 @@ def test_MagErr_using_isoc():
         e_edr3.syn_sample_photoerr(sample_syn = sample_syn)
     )
     sample_obs.to_csv("/home/shenyueyue/Projects/Cluster/data/%s_obs.csv"%name,index=False)
-    sample_syn.to_csv("/home/shenyueyue/Projects/Cluster/data/%s_syn.csv"%name,index=False)
+    sample_syn.to_csv("/home/shenyueyue/Projects/Cluster/data/%s_syn2.csv"%name,index=False)
     
-        
     
 if __name__=="__main__":
     test_MagErr_using_isoc()
-    
+
