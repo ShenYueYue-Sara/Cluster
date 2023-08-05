@@ -297,14 +297,14 @@ class MockCMD(object):
         mstart,mend,mstep = m_grid
         c_bin = np.arange(cstart,cend,cstep)
         m_bin = np.arange(mstart,mend,mstep)
-        H,_,_ = np.histogram2d(c, m, bins=(c_bin, m_bin))
+        H, x_edges, y_edges = np.histogram2d(c, m, bins=(c_bin, m_bin))
         # H = H / np.sum(H)   
-        return H
+        return H, x_edges, y_edges
 
     def eval_lnlikelihood(self, c_obs, m_obs, c_syn, m_syn, c_grid=(0, 3, 0.1), m_grid=(6, 16, 0.1)):
         start_time = time.time()
-        H_obs = MockCMD.hist2d_norm(c=c_obs, m=m_obs, c_grid=c_grid, m_grid=m_grid)
-        H_syn = MockCMD.hist2d_norm(c=c_syn, m=m_syn, c_grid=c_grid, m_grid=m_grid)
+        H_obs,_,_ = MockCMD.hist2d_norm(c=c_obs, m=m_obs, c_grid=c_grid, m_grid=m_grid)
+        H_syn,_,_ = MockCMD.hist2d_norm(c=c_syn, m=m_syn, c_grid=c_grid, m_grid=m_grid)
         # non_zero_idx = np.where(H_obs > 0) # get indices of non-zero bins in H_obs
         # chi2 = np.sum(np.square(H_obs[non_zero_idx] - H_syn[non_zero_idx]) / H_obs[non_zero_idx])
         # chi2 = np.sum( np.square(H_obs - H_syn) / np.sqrt((H_obs+1) * (H_syn+1)) )
