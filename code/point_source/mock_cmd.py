@@ -292,7 +292,8 @@ class MockCMD(object):
     @staticmethod
     def hist2d_norm(c, m, c_grid=(0, 3, 0.2), m_grid=(6, 16, 0.1)): #def hist2d(*sample.T,...):
         # adaptive grid wait for developing
-        # define grid edges
+        # define grid edges 
+        # test
         cstart,cend,cstep = c_grid
         mstart,mend,mstep = m_grid
         c_bin = np.arange(cstart,cend,cstep)
