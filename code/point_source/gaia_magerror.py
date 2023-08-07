@@ -149,15 +149,15 @@ class MagError(Edr3LogMagUncertainty):
         #     + (0.0037793818)**2
         # )
         g_med_err = np.sqrt(
-            ( 10**(self.spline_g(sample_syn[self.bands[0]]) - np.log10(np.sqrt(g_n_obs) / np.sqrt(200)))/0.67 )**2 
+            ( 10**(self.spline_g(sample_syn[self.bands[0]]) - np.log10( np.sqrt(g_n_obs)/np.sqrt(200) )) /0.67 )**2 
             + (0.0027553202)**2
         )
         bp_med_err = np.sqrt(
-            ( 10**(self.spline_bp(sample_syn[self.bands[1]]) - np.log10(np.sqrt(bp_n_obs) / np.sqrt(20)))/0.67 )**2 
+            ( 10**(self.spline_bp(sample_syn[self.bands[1]]) - np.log10( np.sqrt(bp_n_obs)/np.sqrt(20) )) /0.67 )**2 
             + (0.0027901700)**2
         )
         rp_med_err = np.sqrt(
-            ( 10**(self.spline_rp(sample_syn[self.bands[2]]) - np.log10(np.sqrt(rp_n_obs) / np.sqrt(20)))/0.67 )**2 
+            ( 10**(self.spline_rp(sample_syn[self.bands[2]]) - np.log10( np.sqrt(rp_n_obs)/np.sqrt(20) )) /0.67 )**2 
             + (0.0037793818)**2
         )
         return g_med_err, bp_med_err, rp_med_err

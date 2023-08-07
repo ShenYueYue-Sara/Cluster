@@ -76,7 +76,7 @@ def lnlike(theta_part, n_stars, step, sample_obs):
     theta = logage, mh, fb, dm
     try:
         if (logage>10.0) or (logage<6.6) or (mh<-0.9) or (mh>0.7) or (fb<0.05) or (fb>1) or (dm<2) or (dm>20):
-            return -1e50 # TODO: -1e50 or -np.inf
+            return -np.inf # TODO: -1e50 or -np.inf
         m = MockCMD(sample_obs=sample_obs,isochrones_dir=isochrones_dir)
         sample_syn = m.mock_stars(theta,n_stars,step)
         c_syn, m_syn = MockCMD.extract_CMD(sample_syn, band_a='Gmag_syn', band_b='G_BPmag_syn', band_c='G_RPmag_syn')
@@ -88,11 +88,11 @@ def lnlike(theta_part, n_stars, step, sample_obs):
         return lnlikelihood
     
     except Exception as e:
-        print("lnlike:",lnlikelihood)
-        print("Error parameters: [%f, %f, %f, %f]"%(logage,mh,fb,dm))
-        print(f"Error encountered: {e}")
+        logging.error("lnlike:",lnlikelihood)
+        logging.error("Error parameters: [%f, %f, %f, %f]"%(logage,mh,fb,dm))
+        logging.error(f"Error encountered: {e}")
         traceback.print_exc()
-        return -1e50 # TODO: -1e50 or -np.inf
+        return -np.inf # TODO: -1e50 or -np.inf
     
 def test_randomness(sample_obs, theta, n_stars, time=1000, step=(0.05, 0.1)):
     """Test the randomness of lnlikelihood."""

@@ -17,7 +17,7 @@ plt.style.use("default")
 logs_dir = '/home/shenyueyue/Projects/Cluster/logs/'
 logging.basicConfig(
     filename=os.path.join(logs_dir,'total.log'),
-    level=logging.INFO,
+    level=logging.ERROR,
     format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
     filemode='w') 
 
@@ -290,7 +290,7 @@ class MockCMD(object):
     # def draw_CMD(c,m):
     
     @staticmethod
-    def hist2d_norm(c, m, c_grid=(0, 3, 0.1), m_grid=(6, 16, 0.1)): #def hist2d(*sample.T,...):
+    def hist2d_norm(c, m, c_grid=(0, 3, 0.2), m_grid=(6, 16, 0.1)): #def hist2d(*sample.T,...):
         # adaptive grid wait for developing
         # define grid edges
         cstart,cend,cstep = c_grid
@@ -301,7 +301,7 @@ class MockCMD(object):
         # H = H / np.sum(H)   
         return H, x_edges, y_edges
 
-    def eval_lnlikelihood(self, c_obs, m_obs, c_syn, m_syn, c_grid=(0, 3, 0.1), m_grid=(6, 16, 0.1)):
+    def eval_lnlikelihood(self, c_obs, m_obs, c_syn, m_syn, c_grid=(0, 3, 0.2), m_grid=(6, 16, 0.1)):
         start_time = time.time()
         H_obs,_,_ = MockCMD.hist2d_norm(c=c_obs, m=m_obs, c_grid=c_grid, m_grid=m_grid)
         H_syn,_,_ = MockCMD.hist2d_norm(c=c_syn, m=m_syn, c_grid=c_grid, m_grid=m_grid)
