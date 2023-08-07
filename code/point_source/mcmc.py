@@ -125,7 +125,7 @@ def main():
     usecols = ['Gmag','G_BPmag','G_RPmag','phot_g_n_obs','phot_bp_n_obs','phot_rp_n_obs']
     sample_obs = pd.read_csv("/home/shenyueyue/Projects/Cluster/data/Cantat-Gaudin_2020/%s.csv"%(name), usecols=usecols)
     sample_obs = sample_obs.dropna().reset_index(drop=True)
-    '''
+
     # MCMC
     n_stars = len(sample_obs)
     step = (0.05, 0.2)
@@ -169,7 +169,7 @@ def main():
             title_kwargs={"fontsize": 12},
             title_fmt = '.2f')
     fig.savefig(f"/home/shenyueyue/Projects/Cluster/code/point_source/figure/mcmc_w{nwalkers}_b{nburn}_r{nsteps}.png",bbox_inches='tight')
-    '''
+
     
     '''
     # test the randomness of lnlikelihood() vs logage
@@ -184,13 +184,13 @@ def main():
         print(f"test_randomness for n_stars={n_stars}")
         test_randomness(sample_obs, theta1, n_stars)
     ''' 
-    
+    '''
     # test the lnlike distribution in parameter space
     logage_grid = (6.6, 10, 0.01)
     mh_grid = (-0.9, 0.7, 0.01)
     df = lnlike_distribution(sample_obs, logage_grid=logage_grid, mh_grid=mh_grid)
     df.to_csv("/home/shenyueyue/Projects/Cluster/data/lnlike_distribution.csv",index=False)
-
+    '''
 def test_corner():   
     ndim = 2
     nwalkers = 4
