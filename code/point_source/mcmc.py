@@ -57,6 +57,7 @@ def lnlike_distribution(sample_obs, logage_grid, mh_grid, n_jobs=10):
     def lnlike_wrapper(theta_part):
         lnlikelihood = lnlike(theta_part, n_stars, step, sample_obs)
         return lnlikelihood
+    
     # parallel excution
     results = Parallel(n_jobs=n_jobs)(
         delayed(lnlike_wrapper)(theta_part) for theta_part in logage_mh
@@ -68,7 +69,7 @@ def lnlike_distribution(sample_obs, logage_grid, mh_grid, n_jobs=10):
     
 
 
-def lnlike(theta_part, n_stars, step, sample_obs):
+def lnlike(theta_part, n_stars, step, sample_obs, method="hist2hist"):
     start_time = time.time()
     # logage, mh, fb, dm = theta
     fb, dm = 0.35, 5.55
@@ -76,12 +77,12 @@ def lnlike(theta_part, n_stars, step, sample_obs):
     theta = logage, mh, fb, dm
     try:
         if (logage>10.0) or (logage<6.6) or (mh<-0.9) or (mh>0.7) or (fb<0.05) or (fb>1) or (dm<2) or (dm>20):
-            return -np.inf # TODO: -1e50 or -np.inf
+            return -np.inf 
         m = MockCMD(sample_obs=sample_obs,isochrones_dir=isochrones_dir)
         sample_syn = m.mock_stars(theta,n_stars,step)
         c_syn, m_syn = MockCMD.extract_CMD(sample_syn, band_a='Gmag_syn', band_b='G_BPmag_syn', band_c='G_RPmag_syn')
         c_obs, m_obs = MockCMD.extract_CMD(sample_obs, band_a='Gmag', band_b='G_BPmag', band_c='G_RPmag')
-        lnlikelihood = m.eval_lnlikelihood(c_obs, m_obs, c_syn, m_syn)
+        lnlikelihood = m.eval_lnlikelihood(c_obs, m_obs, c_syn, m_syn, method)
         end_time = time.time()
         run_time = end_time - start_time
         logging.info(f"time lnlike() : {run_time:.4f} s")    
@@ -92,12 +93,20 @@ def lnlike(theta_part, n_stars, step, sample_obs):
         logging.error("Error parameters: [%f, %f, %f, %f]"%(logage,mh,fb,dm))
         logging.error(f"Error encountered: {e}")
         traceback.print_exc()
-        return -np.inf # TODO: -1e50 or -np.inf
+        return -np.inf 
     
-def test_randomness(sample_obs, theta, n_stars, time=1000, step=(0.05, 0.1)):
-    """Test the randomness of lnlikelihood."""
+def test_randomness(sample_obs, theta, n_stars, method="hist2hist", time=2000, step=(0.05, 0.1)):
+    """Test the randomness of lnlikelihood.
+
+    Parameters
+    ----------
+    method : str, optinal
+        Method to calculate lnlikelihood. "hist2hist", "hist2point"
+    """
     lnlike_list = []
     logage, mh, fb, dm = theta
+    print(f"calculate lnlike values in total : {time} times")
+    logage_mh = []
     for i in range(time):
         lnlikelihood = lnlike(theta, n_stars, step, sample_obs)
         lnlike_list.append(lnlikelihood)
@@ -109,7 +118,43 @@ def test_randomness(sample_obs, theta, n_stars, time=1000, step=(0.05, 0.1)):
     ax.text(0.7, 0.90, f"std: {np.std(lnlike_list):.1f}", transform=ax.transAxes)
     ax.set_title(f"logage:{logage} [M/H]:{mh} fb:{fb} dm:{dm} nstars:{n_stars}")
     fig.show()
-    
+    return lnlike_list
+
+def test_randommess_n_stars():
+
+    '''
+    # test the randomness of lnlikelihood() vs n_stars
+    n = [500, 942, 1000, 5000]
+    for n_stars in n:
+        print(f"test_randomness for n_stars={n_stars}")
+        test_randomness(sample_obs, theta1, n_stars)
+    '''
+    pass
+
+    '''
+    # test the lnlike distribution in parameter space
+    logage_grid = (6.6, 10, 0.01)
+    mh_grid = (-0.9, 0.7, 0.01)
+    df = lnlike_distribution(sample_obs, logage_grid=logage_grid, mh_grid=mh_grid)
+    df.to_csv("/home/shenyueyue/Projects/Cluster/data/lnlike_distribution.csv",index=False)
+    '''
+def read_sample_obs():
+    name = 'Melotte_22'
+    usecols = ['Gmag','G_BPmag','G_RPmag','phot_g_n_obs','phot_bp_n_obs','phot_rp_n_obs']
+    sample_obs = pd.read_csv("/home/shenyueyue/Projects/Cluster/data/Cantat-Gaudin_2020/%s.csv"%(name), usecols=usecols)
+    sample_obs = sample_obs.dropna().reset_index(drop=True)
+    return sample_obs
+
+def test():
+    sample_obs = read_sample_obs()
+    # test the randomness of lnlikelihood() vs logage
+    theta1 = (7.89, 0.032, 0.35, 5.55) # 
+    theta2 = (8.89, 0.032, 0.35, 5.55) # 
+    n_stars = 100000
+    method = "hist2hist"
+    test_randomness(sample_obs, theta1, n_stars, method)
+    # test_randomness(sample_obs, theta2, n_stars, method)
+    return
 
 def main():
     '''
@@ -170,27 +215,7 @@ def main():
             title_fmt = '.2f')
     fig.savefig(f"/home/shenyueyue/Projects/Cluster/code/point_source/figure/mcmc_w{nwalkers}_b{nburn}_r{nsteps}.png",bbox_inches='tight')
 
-    
-    '''
-    # test the randomness of lnlikelihood() vs logage
-    theta1 = (7.89, 0.032, 0.35, 5.55)
-    theta2 = (8.89, 0.032, 0.35, 5.55)
-    n_stars = len(sample_obs)
-    test_randomness(sample_obs, theta1, n_stars)
-    test_randomness(sample_obs, theta2, n_stars)
-    # test the randomness of lnlikelihood() vs n_stars
-    n = [500, 942, 1000, 5000]
-    for n_stars in n:
-        print(f"test_randomness for n_stars={n_stars}")
-        test_randomness(sample_obs, theta1, n_stars)
-    ''' 
-    '''
-    # test the lnlike distribution in parameter space
-    logage_grid = (6.6, 10, 0.01)
-    mh_grid = (-0.9, 0.7, 0.01)
-    df = lnlike_distribution(sample_obs, logage_grid=logage_grid, mh_grid=mh_grid)
-    df.to_csv("/home/shenyueyue/Projects/Cluster/data/lnlike_distribution.csv",index=False)
-    '''
+
 def test_corner():   
     ndim = 2
     nwalkers = 4
@@ -206,4 +231,4 @@ def test_corner():
     fig = corner.corner(samples)
     
 if __name__ == '__main__':
-    main()
+    test()

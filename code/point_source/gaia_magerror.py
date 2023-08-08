@@ -131,7 +131,14 @@ class MagError(Edr3LogMagUncertainty):
         return g_n_obs, bp_n_obs, rp_n_obs
     
     def estimate_med_photoerr(self, sample_syn):
-        # return statistic value (MEDIAN) of the error distribution, considering number of observation
+        """Estimate the photometric error.
+
+        Returns
+        -------
+        g_med_err, bp_med_err, rp_med_err : ndarray
+            Return statistic value (standard error) of the error distribution, 
+            considering observation number of each synthetic star.
+        """
         # step 1 : generate synthetic n_obs for each band
         n_stars = len(sample_syn)
         g_n_obs, bp_n_obs, rp_n_obs = self.random_n_obs(n_stars)
@@ -148,18 +155,25 @@ class MagError(Edr3LogMagUncertainty):
         #     ( 10**(self.spline_rp(sample_syn[self.bands[2]]) - np.log10(np.sqrt(rp_n_obs) / np.sqrt(20))) )**2 
         #     + (0.0037793818)**2
         # )
-        g_med_err = np.sqrt(
-            ( 10**(self.spline_g(sample_syn[self.bands[0]]) - np.log10( np.sqrt(g_n_obs)/np.sqrt(200) )) /0.67 )**2 
-            + (0.0027553202)**2
-        )
-        bp_med_err = np.sqrt(
-            ( 10**(self.spline_bp(sample_syn[self.bands[1]]) - np.log10( np.sqrt(bp_n_obs)/np.sqrt(20) )) /0.67 )**2 
-            + (0.0027901700)**2
-        )
-        rp_med_err = np.sqrt(
-            ( 10**(self.spline_rp(sample_syn[self.bands[2]]) - np.log10( np.sqrt(rp_n_obs)/np.sqrt(20) )) /0.67 )**2 
-            + (0.0037793818)**2
-        )
+        try:
+            g_med_err = np.sqrt(
+                ( 10**(self.spline_g(sample_syn[self.bands[0]]) - np.log10( np.sqrt(g_n_obs)/np.sqrt(200) )) /0.67 )**2 
+                + (0.0027553202)**2
+            )
+            bp_med_err = np.sqrt(
+                ( 10**(self.spline_bp(sample_syn[self.bands[1]]) - np.log10( np.sqrt(bp_n_obs)/np.sqrt(20) )) /0.67 )**2 
+                + (0.0027901700)**2
+            )
+            rp_med_err = np.sqrt(
+                ( 10**(self.spline_rp(sample_syn[self.bands[2]]) - np.log10( np.sqrt(rp_n_obs)/np.sqrt(20) )) /0.67 )**2 
+                + (0.0037793818)**2
+            )
+        except ZeroDivisionError as e:
+            print("Error: Division by zero encountered.")
+            print("g_n_obs:", g_n_obs)
+            print("sample_syn:", sample_syn)
+            raise e
+            
         return g_med_err, bp_med_err, rp_med_err
     
     def syn_sample_photoerr(self, sample_syn):
@@ -212,6 +226,9 @@ def main():
     ax[3].set_xlabel('BP-RP (mag)')
     ax[3].set_ylabel('G (mag)')
     ax[3].set_title('CMD for checking')
+
+def test_estimate_med_photoerr():
+    
     
 if __name__=="__main__":
     main()
